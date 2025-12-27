@@ -107,7 +107,104 @@ const MACEDONIAN_WORDS = [
   { word: 'Облак', clue: 'Природа' },
   { word: 'Дожд', clue: 'Природа' },
   { word: 'Снег', clue: 'Природа' },
-  { word: 'Ветер', clue: 'Природа' }
+  { word: 'Ветер', clue: 'Природа' },
+  { word: 'Пустина', clue: 'Природа' },
+  { word: 'Шума', clue: 'Природа' },
+  { word: 'Остров', clue: 'Природа' },
+  { word: 'Плажа', clue: 'Локација' },
+  { word: 'Рака', clue: 'Дел од тело' },
+  { word: 'Нога', clue: 'Дел од тело' },
+  { word: 'Глава', clue: 'Дел од тело' },
+  { word: 'Око', clue: 'Дел од тело' },
+  { word: 'Уво', clue: 'Дел од тело' },
+  { word: 'Нос', clue: 'Дел од тело' },
+  { word: 'Уста', clue: 'Дел од тело' },
+  { word: 'Заб', clue: 'Дел од тело' },
+  { word: 'Јазик', clue: 'Дел од тело' },
+  { word: 'Срце', clue: 'Дел од тело' },
+  { word: 'Мозок', clue: 'Дел од тело' },
+  { word: 'Стомак', clue: 'Дел од тело' },
+  { word: 'Прст', clue: 'Дел од тело' },
+  { word: 'Колено', clue: 'Дел од тело' },
+  { word: 'Лакт', clue: 'Дел од тело' },
+  { word: 'Рамо', clue: 'Дел од тело' },
+  { word: 'Грб', clue: 'Дел од тело' },
+  { word: 'Пица', clue: 'Храна' },
+  { word: 'Бургер', clue: 'Храна' },
+  { word: 'Сендвич', clue: 'Храна' },
+  { word: 'Салата', clue: 'Храна' },
+  { word: 'Супа', clue: 'Храна' },
+  { word: 'Торта', clue: 'Храна' },
+  { word: 'Колач', clue: 'Храна' },
+  { word: 'Шоколадо', clue: 'Храна' },
+  { word: 'Бомбона', clue: 'Храна' },
+  { word: 'Сладолед', clue: 'Храна' },
+  { word: 'Пченица', clue: 'Растение' },
+  { word: 'Ориз', clue: 'Храна' },
+  { word: 'Макарони', clue: 'Храна' },
+  { word: 'Путер', clue: 'Храна' },
+  { word: 'Мед', clue: 'Храна' },
+  { word: 'Џем', clue: 'Храна' },
+  { word: 'Чај', clue: 'Пијалок' },
+  { word: 'Сок', clue: 'Пијалок' },
+  { word: 'Ракија', clue: 'Пијалок' },
+  { word: 'Виски', clue: 'Пијалок' },
+  { word: 'Лимонада', clue: 'Пијалок' },
+  { word: 'Баскетбол', clue: 'Спорт' },
+  { word: 'Ракомет', clue: 'Спорт' },
+  { word: 'Голф', clue: 'Спорт' },
+  { word: 'Бокс', clue: 'Спорт' },
+  { word: 'Скијање', clue: 'Спорт' },
+  { word: 'Сурфање', clue: 'Спорт' },
+  { word: 'Јога', clue: 'Спорт' },
+  { word: 'Карате', clue: 'Спорт' },
+  { word: 'Шах', clue: 'Игра' },
+  { word: 'Карти', clue: 'Игра' },
+  { word: 'Коцки', clue: 'Игра' },
+  { word: 'Пазл', clue: 'Игра' },
+  { word: 'Лего', clue: 'Играчка' },
+  { word: 'Кукла', clue: 'Играчка' },
+  { word: 'Топка', clue: 'Играчка' },
+  { word: 'Роботи', clue: 'Играчка' },
+  { word: 'Црвено', clue: 'Боја' },
+  { word: 'Сино', clue: 'Боја' },
+  { word: 'Жолто', clue: 'Боја' },
+  { word: 'Зелено', clue: 'Боја' },
+  { word: 'Црно', clue: 'Боја' },
+  { word: 'Бело', clue: 'Боја' },
+  { word: 'Портокалово', clue: 'Боја' },
+  { word: 'Виолетово', clue: 'Боја' },
+  { word: 'Розово', clue: 'Боја' },
+  { word: 'Кафеаво', clue: 'Боја' },
+  { word: 'Сиво', clue: 'Боја' },
+  { word: 'Еден', clue: 'Број' },
+  { word: 'Два', clue: 'Број' },
+  { word: 'Три', clue: 'Број' },
+  { word: 'Десет', clue: 'Број' },
+  { word: 'Сто', clue: 'Број' },
+  { word: 'Илјада', clue: 'Број' },
+  { word: 'Милион', clue: 'Број' },
+  { word: 'Пола', clue: 'Број' },
+  { word: 'Оган', clue: 'Елемент' },
+  { word: 'Вода', clue: 'Елемент' },
+  { word: 'Воздух', clue: 'Елемент' },
+  { word: 'Земја', clue: 'Планета' },
+  { word: 'Марс', clue: 'Планета' },
+  { word: 'Венера', clue: 'Планета' },
+  { word: 'Јупитер', clue: 'Планета' },
+  { word: 'Сатурн', clue: 'Планета' },
+  { word: 'Ѕвезда', clue: 'Небо' },
+  { word: 'Комета', clue: 'Небо' },
+  { word: 'Галаксија', clue: 'Небо' },
+  { word: 'Астронаут', clue: 'Професија' },
+  { word: 'Доктор', clue: 'Професија' },
+  { word: 'Учител', clue: 'Професија' },
+  { word: 'Полицаец', clue: 'Професија' },
+  { word: 'Пожарникар', clue: 'Професија' },
+  { word: 'Готвач', clue: 'Професија' },
+  { word: 'Пилот', clue: 'Професија' },
+  { word: 'Шофер', clue: 'Професија' },
+  { word: 'Сликар', clue: 'Професија' }
 ];
 
 export default function Home() {
@@ -116,7 +213,9 @@ export default function Home() {
   const [currentWord, setCurrentWord] = useState({ word: '', clue: '' });
   const [impostorIndex, setImpostorIndex] = useState(-1);
   const [firstPlayer, setFirstPlayer] = useState('');
-  const [showWord, setShowWord] = useState<number | null>(null);
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
+  const [showCard, setShowCard] = useState(false);
+  const [cardRevealed, setCardRevealed] = useState(false);
 
   const handlePlayerChange = (index: number, value: string) => {
     const newPlayers = [...players];
@@ -138,15 +237,27 @@ export default function Home() {
     setImpostorIndex(randomImpostor);
     setFirstPlayer(randomFirst);
     setGameStarted(true);
-    setShowWord(null);
+    setCurrentPlayerIndex(0);
+    setShowCard(false);
+    setCardRevealed(false);
+  };
+
+  const handleNextPlayer = () => {
+    if (currentPlayerIndex < 3) {
+      setCurrentPlayerIndex(currentPlayerIndex + 1);
+      setShowCard(false);
+      setCardRevealed(false);
+    }
   };
 
   const resetGame = () => {
     setGameStarted(false);
-    setShowWord(null);
+    setShowCard(false);
+    setCardRevealed(false);
     setCurrentWord({ word: '', clue: '' });
     setImpostorIndex(-1);
     setFirstPlayer('');
+    setCurrentPlayerIndex(0);
   };
 
   if (!gameStarted) {
@@ -162,7 +273,7 @@ export default function Home() {
                 placeholder={`Играч ${index + 1}`}
                 value={player}
                 onChange={(e) => handlePlayerChange(index, e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 text-lg"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 text-lg text-gray-800 bg-white"
               />
             ))}
           </div>
@@ -177,42 +288,87 @@ export default function Home() {
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 p-4">
-      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-8">
-        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">Impostor Game</h1>
+  // Step-by-step reveal phase
+  if (currentPlayerIndex < 4) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+          <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
+            {showCard ? 'Твојата карта' : 'Предај телефон на...'}
+          </h1>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          {players.map((player, index) => (
-            <div key={index} className="relative">
+          {!showCard ? (
+            <div className="flex flex-col items-center gap-6">
+              <div className="text-6xl">📱</div>
+              <p className="text-4xl font-bold text-gray-800 text-center">
+                {players[currentPlayerIndex]}
+              </p>
               <button
-                onClick={() => setShowWord(showWord === index ? null : index)}
-                className="w-full p-6 rounded-xl text-xl font-semibold transition-all transform hover:scale-105 bg-gradient-to-r from-blue-500 to-cyan-500 text-white"
+                onClick={() => setShowCard(true)}
+                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-4 rounded-lg text-xl font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all transform hover:scale-105"
               >
-                {player}
+                Прикажи карта
               </button>
-              {showWord === index && (
-                <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-gray-900 text-white rounded-lg shadow-xl z-10">
-                  {index === impostorIndex ? (
-                    <div>
-                      <p className="text-sm font-medium mb-1">Ти си IMPOSTOR! 🕵️</p>
-                      <p className="text-lg">Навод: <span className="font-bold">{currentWord.clue}</span></p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm font-medium mb-1">Твојот збор:</p>
-                      <p className="text-2xl font-bold">{currentWord.word}</p>
-                    </div>
-                  )}
-                </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-6">
+              <div
+                onClick={() => setCardRevealed(!cardRevealed)}
+                className="w-full aspect-[3/4] bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-2xl cursor-pointer flex items-center justify-center p-8 transition-all transform hover:scale-105"
+              >
+                {!cardRevealed ? (
+                  <div className="text-center text-white">
+                    <div className="text-8xl mb-4">🎴</div>
+                    <p className="text-2xl font-bold">Притисни за откривање</p>
+                  </div>
+                ) : (
+                  <div className="text-center text-white">
+                    {currentPlayerIndex === impostorIndex ? (
+                      <div>
+                        <p className="text-3xl font-bold mb-4">🕵️ IMPOSTOR</p>
+                        <p className="text-xl mb-2">Навод:</p>
+                        <p className="text-4xl font-bold">{currentWord.clue}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xl mb-2">Твојот збор:</p>
+                        <p className="text-5xl font-bold">{currentWord.word}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {cardRevealed && (
+                <button
+                  onClick={handleNextPlayer}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-4 rounded-lg text-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105"
+                >
+                  {currentPlayerIndex < 3 ? 'Следен играч' : 'Започни игра'}
+                </button>
               )}
             </div>
-          ))}
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Game started - show who starts
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
+        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">Играта започна!</h1>
+
+        <div className="bg-gradient-to-r from-green-400 to-emerald-500 p-8 rounded-xl mb-8">
+          <p className="text-center text-white text-3xl font-bold">
+            🎮 {firstPlayer} започнува!
+          </p>
         </div>
 
-        <div className="bg-gradient-to-r from-green-400 to-emerald-500 p-6 rounded-xl mb-6">
-          <p className="text-center text-white text-2xl font-bold">
-            🎮 {firstPlayer} започнува!
+        <div className="bg-gray-100 p-6 rounded-xl mb-8">
+          <p className="text-center text-gray-700 text-lg">
+            Најдете го impostor-от пред тој да ве најде вас!
           </p>
         </div>
 
