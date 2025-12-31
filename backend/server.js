@@ -35,6 +35,7 @@ io.on('connection', (socket) => {
       votes: {},
       nightActions: {
         mafiaKill: null,
+        mafiaVotes: {}, // Store votes from each mafia player
         policeInvestigate: null,
         doctorSave: null
       },
@@ -107,13 +108,13 @@ io.on('connection', (socket) => {
       alive: true
     }));
 
-    room.gameState = 'roles';
-    room.phase = 'roles';
-    room.nightActions = { mafiaKill: null, policeInvestigate: null, doctorSave: null };
-    io.to(roomCode).emit('game-started', room);
+      room.gameState = 'roles';
+      room.phase = 'roles';
+      room.nightActions = { mafiaKill: null, mafiaVotes: {}, policeInvestigate: null, doctorSave: null };
+      io.to(roomCode).emit('game-started', room);
   });
 
-  // Mafia actions
+  // Mafia actions - voting system
   socket.on('mafia-kill', ({ roomCode, targetId }) => {
     const room = rooms.get(roomCode);
     if (!room) return;
@@ -121,8 +122,40 @@ io.on('connection', (socket) => {
     const isMafia = mafiaPlayers.some(m => m.playerId === socket.id);
     if (!isMafia) return;
     
-    room.nightActions.mafiaKill = targetId;
-    room.phase = 'night-police';
+    // Store vote from this mafia player (allow changing vote)
+    if (!room.nightActions.mafiaVotes) {
+      room.nightActions.mafiaVotes = {};
+    }
+    room.nightActions.mafiaVotes[socket.id] = targetId;
+    
+    // Count votes for each target
+    const voteCounts = {};
+    Object.values(room.nightActions.mafiaVotes).forEach((target) => {
+      voteCounts[target] = (voteCounts[target] || 0) + 1;
+    });
+    
+    // Check if all mafias have voted
+    const allMafiasVoted = mafiaPlayers.length === Object.keys(room.nightActions.mafiaVotes).length;
+    
+    if (allMafiasVoted) {
+      // Check if all mafias voted for the same target
+      const uniqueTargets = Object.keys(voteCounts);
+      const allAgreed = uniqueTargets.length === 1 && voteCounts[uniqueTargets[0]] === mafiaPlayers.length;
+      
+      if (allAgreed) {
+        // All mafias agreed on the same target
+        room.nightActions.mafiaKill = uniqueTargets[0];
+        room.phase = 'night-police';
+      } else {
+        // Mafias voted for different targets - clear mafiaKill and stay in voting phase
+        room.nightActions.mafiaKill = null;
+        // Phase stays as 'night-mafia' - they need to vote again
+      }
+    } else {
+      // Not all mafias have voted yet - clear mafiaKill
+      room.nightActions.mafiaKill = null;
+    }
+    
     io.to(roomCode).emit('game-updated', room);
   });
 
@@ -137,7 +170,8 @@ io.on('connection', (socket) => {
     const isMafia = target?.role === 'mafia';
     room.nightActions.policeInvestigate = { targetId, isMafia };
     socket.emit('police-result', { isMafia, targetName: target?.playerName });
-    room.phase = 'night-doctor';
+    // Don't auto-advance phase - let police see result first
+    // Phase will advance when admin clicks next-phase
     io.to(roomCode).emit('game-updated', room);
   });
 
@@ -150,7 +184,37 @@ io.on('connection', (socket) => {
     
     room.nightActions.doctorSave = targetId;
     
-    // Process night
+    // Don't process night yet - let doctor see the result first
+    // Night will be processed when admin clicks next phase
+    io.to(roomCode).emit('game-updated', room);
+  });
+
+  // Vote
+  socket.on('vote', ({ roomCode, targetId }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    room.votes[socket.id] = targetId;
+    io.to(roomCode).emit('game-updated', room);
+  });
+
+  // Police continues to doctor phase
+  socket.on('police-continue', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    const policePlayer = room.roles.find(r => r.role === 'police' && r.playerId === socket.id);
+    if (!policePlayer || room.phase !== 'night-police') return;
+    
+    room.phase = 'night-doctor';
+    io.to(roomCode).emit('game-updated', room);
+  });
+
+  // Doctor continues to day phase
+  socket.on('doctor-continue', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    const doctorPlayer = room.roles.find(r => r.role === 'doctor' && r.playerId === socket.id);
+    if (!doctorPlayer || room.phase !== 'night-doctor' || !room.nightActions.doctorSave) return;
+    
     const killed = room.nightActions.mafiaKill;
     const saved = room.nightActions.doctorSave;
     
@@ -171,44 +235,50 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('night-complete', room);
   });
 
-  // Vote
-  socket.on('vote', ({ roomCode, targetId }) => {
-    const room = rooms.get(roomCode);
-    if (!room) return;
-    room.votes[socket.id] = targetId;
-    io.to(roomCode).emit('game-updated', room);
-  });
-
-  // Next day/night
+  // Next day/night (admin only - for day phase to next night, and roles to first night)
   socket.on('next-phase', ({ roomCode }) => {
     const room = rooms.get(roomCode);
     if (!room || room.admin !== socket.id) return;
 
-    // Check win conditions
-    const aliveMafia = room.roles.filter(r => r.role === 'mafia' && r.alive).length;
-    const aliveCitizens = room.roles.filter(r => r.role !== 'mafia' && r.alive).length;
-
-    if (aliveMafia === 0) {
-      room.gameState = 'finished';
-      room.winner = 'citizens';
-      io.to(roomCode).emit('game-finished', room);
-      return;
-    }
-    if (aliveMafia >= aliveCitizens) {
-      room.gameState = 'finished';
-      room.winner = 'mafia';
-      io.to(roomCode).emit('game-finished', room);
+    // If we're in roles phase, start the first night
+    if (room.phase === 'roles') {
+      room.gameState = 'night';
+      room.phase = 'night-mafia';
+      room.day = 1;
+      room.nightActions = { mafiaKill: null, mafiaVotes: {}, policeInvestigate: null, doctorSave: null };
+      room.nightResult = '';
+      room.votes = {};
+      io.to(roomCode).emit('game-updated', room);
       return;
     }
 
-    // Next night
-    room.day++;
-    room.gameState = 'night';
-    room.phase = 'night-mafia';
-    room.nightActions = { mafiaKill: null, policeInvestigate: null, doctorSave: null };
-    room.nightResult = '';
-    room.votes = {};
-    io.to(roomCode).emit('game-updated', room);
+    // Check win conditions (only during day phase)
+    if (room.phase === 'day') {
+      const aliveMafia = room.roles.filter(r => r.role === 'mafia' && r.alive).length;
+      const aliveCitizens = room.roles.filter(r => r.role !== 'mafia' && r.alive).length;
+
+      if (aliveMafia === 0) {
+        room.gameState = 'finished';
+        room.winner = 'citizens';
+        io.to(roomCode).emit('game-finished', room);
+        return;
+      }
+      if (aliveMafia >= aliveCitizens) {
+        room.gameState = 'finished';
+        room.winner = 'mafia';
+        io.to(roomCode).emit('game-finished', room);
+        return;
+      }
+
+      // Next night
+      room.day++;
+      room.gameState = 'night';
+      room.phase = 'night-mafia';
+      room.nightActions = { mafiaKill: null, mafiaVotes: {}, policeInvestigate: null, doctorSave: null };
+      room.nightResult = '';
+      room.votes = {};
+      io.to(roomCode).emit('game-updated', room);
+    }
   });
 
   // Disconnect

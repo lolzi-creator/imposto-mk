@@ -28,6 +28,8 @@ export default function Home() {
   const [onlineGameState, setOnlineGameState] = useState<any>(null);
   const [myRole, setMyRole] = useState<MafiaRole | null>(null);
   const [policeResult, setPoliceResult] = useState<{ isMafia: boolean; targetName: string } | null>(null);
+  const [policeSearching, setPoliceSearching] = useState(false);
+  const [doctorSaveConfirmed, setDoctorSaveConfirmed] = useState(false);
   const [votes, setVotes] = useState<Record<string, string>>({});
   const [myVote, setMyVote] = useState<string | null>(null);
   
@@ -385,12 +387,15 @@ export default function Home() {
     });
 
     socket.on('police-result', ({ isMafia, targetName }) => {
+      setPoliceSearching(false);
       setPoliceResult({ isMafia, targetName });
     });
 
     socket.on('night-complete', (room) => {
       setOnlineGameState(room);
       setPoliceResult(null); // Reset police result for next night
+      setPoliceSearching(false);
+      setDoctorSaveConfirmed(false);
     });
 
     socket.on('game-finished', (room) => {
@@ -666,15 +671,31 @@ export default function Home() {
               <p className="text-gray-400 text-sm">Провери ја твојата улога</p>
             </div>
 
-            <div className="bg-[#2d3441] p-8 rounded-xl mb-6">
-              <p className="text-white text-xl font-bold text-center mb-4">{playerName}</p>
-              <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
-              <p className="text-3xl font-bold text-center">
-                {myRoleData?.role === 'mafia' && <span className="text-red-500">Мафија</span>}
-                {myRoleData?.role === 'police' && <span className="text-blue-500">Полиција</span>}
-                {myRoleData?.role === 'doctor' && <span className="text-green-500">Доктор</span>}
-                {myRoleData?.role === 'citizen' && <span className="text-gray-400">Граѓанин</span>}
-              </p>
+            <div className="bg-[#2d3441] p-6 rounded-xl mb-6">
+              <div className="flex flex-col items-center">
+                <div className="w-full max-w-xs mb-6">
+                  {myRoleData?.role === 'mafia' && (
+                    <img src="/mafia.jpeg" alt="Мафија" className="w-full aspect-[3/4] object-cover rounded-xl shadow-lg" />
+                  )}
+                  {myRoleData?.role === 'police' && (
+                    <img src="/police.jpeg" alt="Полиција" className="w-full aspect-[3/4] object-cover rounded-xl shadow-lg" />
+                  )}
+                  {myRoleData?.role === 'doctor' && (
+                    <img src="/doctor.jpeg" alt="Доктор" className="w-full aspect-[3/4] object-cover rounded-xl shadow-lg" />
+                  )}
+                  {myRoleData?.role === 'citizen' && (
+                    <img src="/villager.jpeg" alt="Граѓанин" className="w-full aspect-[3/4] object-cover rounded-xl shadow-lg" />
+                  )}
+                </div>
+                <p className="text-white text-xl font-bold text-center mb-4">{playerName}</p>
+                <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
+                <p className="text-3xl font-bold text-center">
+                  {myRoleData?.role === 'mafia' && <span className="text-red-500">Мафија</span>}
+                  {myRoleData?.role === 'police' && <span className="text-blue-500">Полиција</span>}
+                  {myRoleData?.role === 'doctor' && <span className="text-green-500">Доктор</span>}
+                  {myRoleData?.role === 'citizen' && <span className="text-gray-400">Граѓанин</span>}
+                </p>
+              </div>
             </div>
 
             {isAdmin && (
@@ -702,41 +723,98 @@ export default function Home() {
     if (phase === 'night-mafia' && myRole === 'mafia') {
       const mafiaPlayers = roles?.filter((r: any) => r.role === 'mafia' && r.alive) || [];
       const targets = alivePlayers.filter((r: any) => !mafiaPlayers.some((m: any) => m.playerId === r.playerId));
+      const mafiaVotes = nightActions?.mafiaVotes || {};
+      const myVote = mafiaVotes[socket?.id || ''];
+      const killedTarget = nightActions?.mafiaKill ? roles?.find((r: any) => r.playerId === nightActions.mafiaKill) : null;
+
+      // Count votes for display
+      const voteCounts: Record<string, number> = {};
+      Object.values(mafiaVotes).forEach((targetId: any) => {
+        voteCounts[targetId] = (voteCounts[targetId] || 0) + 1;
+      });
+
+      // If all mafias voted and target is chosen
+      if (killedTarget && mafiaPlayers.length === Object.keys(mafiaVotes).length) {
+        return (
+          <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-white mb-2">Ноќ {day}</h2>
+                <p className="text-gray-400">Мафија избира жртва</p>
+              </div>
+
+              <div className="bg-[#2d3441] p-8 rounded-xl mb-6">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">🏠</div>
+                  <p className="text-white text-xl font-bold mb-2">{killedTarget.playerName}</p>
+                  <p className="text-gray-400 text-sm">Не го убиваш граѓанинот дома</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       return (
         <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-white mb-2">Ноќ {day}</h2>
-              <p className="text-gray-400">Мафија избира жртва</p>
+              <p className="text-gray-400">Мафија гласа за жртва</p>
             </div>
 
             <div className="bg-[#2d3441] p-4 rounded-xl mb-6">
-              <p className="text-gray-300 text-sm mb-3">Мафија:</p>
+              <p className="text-gray-300 text-sm mb-3 font-semibold">Мафија ({mafiaPlayers.length}):</p>
               <div className="space-y-1">
-                {mafiaPlayers.map((p: any) => (
-                  <p key={p.playerId} className="text-white text-sm">
-                    {p.playerName}
-                  </p>
-                ))}
+                {mafiaPlayers.map((p: any) => {
+                  const hasVoted = mafiaVotes[p.playerId];
+                  return (
+                    <p key={p.playerId} className={`text-sm ${p.playerId === socket?.id ? 'text-[#3b82f6] font-bold' : hasVoted ? 'text-green-400' : 'text-gray-400'}`}>
+                      {p.playerName} {hasVoted ? '✓' : '...'}
+                    </p>
+                  );
+                })}
               </div>
             </div>
 
-            <p className="text-gray-400 text-center mb-6">Избери кого да убиеш:</p>
+            {mafiaPlayers.length > 1 && (
+              <div className="bg-[#1a1f2e] p-4 rounded-xl mb-6">
+                <p className="text-gray-400 text-sm text-center mb-2">Сите мафии мора да се согласат на една жртва</p>
+                <p className="text-gray-500 text-xs text-center">Гласајте за истата личност</p>
+                {Object.keys(mafiaVotes).length === mafiaPlayers.length && !killedTarget && (
+                  <p className="text-red-400 text-xs text-center mt-2 font-bold">Не се согласни! Гласајте повторно за иста личност</p>
+                )}
+              </div>
+            )}
+
+            <p className="text-gray-400 text-center mb-6">
+              {myVote ? 'Твојот глас (можеш да го промениш):' : 'Избери кого да убиете:'}
+            </p>
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {targets.map((target: any) => (
-                <button
-                  key={target.playerId}
-                  onClick={() => {
-                    if (socket) {
-                      socket.emit('mafia-kill', { roomCode, targetId: target.playerId });
-                    }
-                  }}
-                  className="w-full bg-[#2d3441] hover:bg-red-600 text-white py-3 rounded-xl text-lg font-medium transition-all"
-                >
-                  {target.playerName}
-                </button>
-              ))}
+              {targets.map((target: any) => {
+                const voteCount = voteCounts[target.playerId] || 0;
+                const isMyVote = myVote === target.playerId;
+                return (
+                  <button
+                    key={target.playerId}
+                    onClick={() => {
+                      if (socket) {
+                        socket.emit('mafia-kill', { roomCode, targetId: target.playerId });
+                      }
+                    }}
+                    className={`w-full py-3 rounded-xl text-lg font-medium transition-all ${
+                      isMyVote
+                        ? 'bg-red-600 text-white'
+                        : voteCount > 0
+                        ? 'bg-[#2d3441] text-white border-2 border-red-500'
+                        : 'bg-[#2d3441] hover:bg-red-600 text-gray-300'
+                    }`}
+                  >
+                    {target.playerName}
+                    {voteCount > 0 && <span className="ml-2 text-sm">({voteCount}/{mafiaPlayers.length})</span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -753,14 +831,48 @@ export default function Home() {
               <p className="text-gray-400">Полиција истражува</p>
             </div>
 
-            {policeResult ? (
+            {policeSearching ? (
               <div className="bg-[#2d3441] p-8 rounded-xl mb-6">
-                <p className="text-white text-center mb-4">{policeResult.targetName}</p>
-                <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
-                <p className="text-3xl font-bold text-center text-[#3b82f6]">
-                  {policeResult.isMafia ? 'Мафија' : 'Не е мафија'}
-                </p>
+                <div className="text-center">
+                  <div className="text-6xl mb-4 animate-pulse">🔍</div>
+                  <p className="text-white text-xl font-bold mb-2">Истражувам...</p>
+                  <p className="text-gray-400">Чекајте</p>
+                </div>
               </div>
+            ) : policeResult ? (
+              <>
+                <div className="bg-[#2d3441] p-8 rounded-xl mb-6">
+                  <p className="text-white text-center mb-4 text-xl font-bold">Истражувавте: {policeResult.targetName}</p>
+                  <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
+                  <div className="text-center">
+                    {policeResult.isMafia ? (
+                      <>
+                        <div className="text-6xl mb-4">🔫</div>
+                        <p className="text-2xl font-bold text-center text-red-500 mb-2">Мафија!</p>
+                        <p className="text-gray-300 text-sm">Најдовте пиштол и нож со крв</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-6xl mb-4">🚬</div>
+                        <p className="text-2xl font-bold text-center text-green-500 mb-2">Не е мафија</p>
+                        <p className="text-gray-300 text-sm">Најдовте само цигари и запалка</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (socket) {
+                      socket.emit('police-continue', { roomCode });
+                      setPoliceResult(null);
+                      setPoliceSearching(false);
+                    }
+                  }}
+                  className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
+                >
+                  Продолжи →
+                </button>
+              </>
             ) : (
               <>
                 <p className="text-gray-400 text-center mb-6">Избери кого да истражуваш:</p>
@@ -772,6 +884,7 @@ export default function Home() {
                         key={target.playerId}
                         onClick={() => {
                           if (socket) {
+                            setPoliceSearching(true);
                             socket.emit('police-investigate', { roomCode, targetId: target.playerId });
                           }
                         }}
@@ -790,6 +903,53 @@ export default function Home() {
 
     // Night Phase - Doctor
     if (phase === 'night-doctor' && myRole === 'doctor') {
+      const savedTarget = nightActions?.doctorSave ? roles?.find((r: any) => r.playerId === nightActions.doctorSave) : null;
+      const killedTarget = nightActions?.mafiaKill ? roles?.find((r: any) => r.playerId === nightActions.mafiaKill) : null;
+      const wasSaved = killedTarget && savedTarget && killedTarget.playerId === savedTarget.playerId;
+
+      if (doctorSaveConfirmed && savedTarget) {
+        return (
+          <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+            <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-white mb-2">Ноќ {day}</h2>
+                <p className="text-gray-400">Доктор спасува</p>
+              </div>
+
+              <div className="bg-[#2d3441] p-8 rounded-xl mb-6">
+                <div className="text-center">
+                  <div className="text-6xl mb-4">💉</div>
+                  <p className="text-white text-xl font-bold mb-2">{savedTarget.playerName}</p>
+                  {wasSaved ? (
+                    <>
+                      <p className="text-green-500 text-lg font-bold mb-2">Спасен!</p>
+                      <p className="text-gray-300 text-sm">Мафијата се обиде да го убие, но ти го спаси!</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-green-500 text-lg font-bold mb-2">Заштитен</p>
+                      <p className="text-gray-300 text-sm">Ти го заштити овој граѓанин</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  if (socket) {
+                    socket.emit('doctor-continue', { roomCode });
+                    setDoctorSaveConfirmed(false);
+                  }
+                }}
+                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
+              >
+                Продолжи →
+              </button>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
@@ -806,6 +966,7 @@ export default function Home() {
                   onClick={() => {
                     if (socket) {
                       socket.emit('doctor-save', { roomCode, targetId: target.playerId });
+                      setDoctorSaveConfirmed(true);
                     }
                   }}
                   className="w-full bg-[#2d3441] hover:bg-[#10b981] text-white py-3 rounded-xl text-lg font-medium transition-all"
@@ -878,6 +1039,8 @@ export default function Home() {
                     socket.emit('next-phase', { roomCode });
                     setMyVote(null);
                     setPoliceResult(null);
+                    setPoliceSearching(false);
+                    setDoctorSaveConfirmed(false);
                   }
                 }}
                 className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
@@ -1328,7 +1491,21 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-6">
-                  <div className="w-full aspect-[3/4] bg-[#2d3441] border-2 border-[#3b82f6] rounded-2xl flex items-center justify-center p-8">
+                  <div className="w-full aspect-[3/4] bg-[#2d3441] border-2 border-[#3b82f6] rounded-2xl flex flex-col items-center justify-center p-6 overflow-hidden">
+                    <div className="w-full flex-1 mb-4">
+                      {currentRole.role === 'mafia' && (
+                        <img src="/mafia.jpeg" alt="Мафија" className="w-full h-full object-cover rounded-xl shadow-lg" />
+                      )}
+                      {currentRole.role === 'police' && (
+                        <img src="/police.jpeg" alt="Полиција" className="w-full h-full object-cover rounded-xl shadow-lg" />
+                      )}
+                      {currentRole.role === 'doctor' && (
+                        <img src="/doctor.jpeg" alt="Доктор" className="w-full h-full object-cover rounded-xl shadow-lg" />
+                      )}
+                      {currentRole.role === 'citizen' && (
+                        <img src="/villager.jpeg" alt="Граѓанин" className="w-full h-full object-cover rounded-xl shadow-lg" />
+                      )}
+                    </div>
                     <div className="text-center text-white px-4">
                       <p className="text-4xl font-bold mb-4">{roleNames[currentRole.role]}</p>
                       <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
