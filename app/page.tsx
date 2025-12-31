@@ -9,7 +9,7 @@ type GameType = 'home' | 'impostor' | 'mafia' | 'headsup' | 'online-mafia' | 'on
 type GameMode = 'offline' | 'online';
 type MafiaRole = 'mafia' | 'police' | 'doctor' | 'citizen';
 type MafiaPhase = 'roles' | 'night-mafia' | 'night-police' | 'night-doctor' | 'day' | 'finished';
-type HeadsUpSetupStep = 'players' | 'names' | 'game';
+type HeadsUpSetupStep = 'instructions' | 'game';
 
 export default function Home() {
   // Common state
@@ -59,12 +59,11 @@ export default function Home() {
   const [mafiaDay, setMafiaDay] = useState(1);
   
   // HeadsUp state
-  const [headsupSetupStep, setHeadsupSetupStep] = useState<HeadsUpSetupStep>('players');
-  const [headsupCurrentPlayer, setHeadsupCurrentPlayer] = useState(0);
+  const [headsupSetupStep, setHeadsupSetupStep] = useState<HeadsUpSetupStep>('instructions');
   const [headsupCurrentWord, setHeadsupCurrentWord] = useState({ word: '', clue: '' });
   const [headsupShowWord, setHeadsupShowWord] = useState(false);
-  const [headsupTimer, setHeadsupTimer] = useState(60);
   const [headsupScore, setHeadsupScore] = useState(0);
+  const [headsupFlashColor, setHeadsupFlashColor] = useState<string | null>(null);
 
   const handlePlayerChange = (index: number, value: string) => {
     const newPlayers = [...players];
@@ -276,40 +275,25 @@ export default function Home() {
   };
 
   // HeadsUp functions
-  const selectHeadsupPlayerCount = (count: number) => {
-    setPlayerCount(count);
-    setPlayers(Array(count).fill(''));
-    setHeadsupSetupStep('names');
-  };
-
   const startHeadsupGame = () => {
-    if (players.some(p => !p.trim())) {
-      alert('Ве молиме внесете ги сите имиња!');
-      return;
-    }
     setHeadsupSetupStep('game');
-    setHeadsupCurrentPlayer(0);
     setHeadsupScore(0);
     setHeadsupShowWord(false);
     const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
     setHeadsupCurrentWord(randomWord);
   };
 
-  const handleHeadsupNext = () => {
-    if (headsupCurrentPlayer < playerCount - 1) {
-      setHeadsupCurrentPlayer(headsupCurrentPlayer + 1);
-      setHeadsupShowWord(false);
-      const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
-      setHeadsupCurrentWord(randomWord);
-      setHeadsupTimer(60);
-    } else {
-      // Game over
-      setHeadsupSetupStep('players');
-    }
+  const handleHeadsupCorrect = () => {
+    setHeadsupScore((prev) => prev + 1);
+    setHeadsupFlashColor('green');
+    setTimeout(() => setHeadsupFlashColor(null), 300);
+    const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
+    setHeadsupCurrentWord(randomWord);
   };
 
-  const handleHeadsupCorrect = () => {
-    setHeadsupScore(headsupScore + 1);
+  const handleHeadsupSkip = () => {
+    setHeadsupFlashColor('red');
+    setTimeout(() => setHeadsupFlashColor(null), 300);
     const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
     setHeadsupCurrentWord(randomWord);
   };
@@ -318,7 +302,7 @@ export default function Home() {
     setGameType('home');
     setSetupStep('players');
     setMafiaSetupStep('players');
-    setHeadsupSetupStep('players');
+    setHeadsupSetupStep('instructions');
     setPlayerCount(4);
     setImpostorCount(1);
     setPlayers([]);
@@ -338,10 +322,10 @@ export default function Home() {
     setMafiaDoctorTarget(null);
     setMafiaNightResult('');
     setMafiaDay(1);
-    setHeadsupCurrentPlayer(0);
     setHeadsupCurrentWord({ word: '', clue: '' });
     setHeadsupShowWord(false);
     setHeadsupScore(0);
+    setHeadsupFlashColor(null);
   };
 
   // Generate room code
@@ -452,11 +436,15 @@ export default function Home() {
         // Tilted up - mark as correct
         lastTiltTime = now;
         setHeadsupScore((prev) => prev + 1);
+        setHeadsupFlashColor('green');
+        setTimeout(() => setHeadsupFlashColor(null), 300);
         const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
         setHeadsupCurrentWord(randomWord);
       } else if (beta < -TILT_THRESHOLD) {
         // Tilted down - skip
         lastTiltTime = now;
+        setHeadsupFlashColor('red');
+        setTimeout(() => setHeadsupFlashColor(null), 300);
         const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
         setHeadsupCurrentWord(randomWord);
       }
@@ -561,7 +549,7 @@ export default function Home() {
             <button
               onClick={() => {
                 setGameType('headsup');
-                setHeadsupSetupStep('players');
+                setHeadsupSetupStep('instructions');
               }}
               className="bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8 hover:border-[#3b82f6] hover:bg-[#1e2433] transition-all group"
             >
@@ -2046,10 +2034,11 @@ export default function Home() {
 
   // HeadsUp Game Flow
   if (gameType === 'headsup') {
-    if (headsupSetupStep === 'players') {
+    // Instructions screen
+    if (headsupSetupStep === 'instructions') {
       return (
         <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+          <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
             <button
               onClick={() => setGameType('home')}
               className="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
@@ -2057,53 +2046,24 @@ export default function Home() {
               ← Назад
             </button>
 
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-white mb-2">Број на играчи</h2>
-              <p className="text-gray-400">Колку луѓе ќе играат?</p>
-            </div>
-
-            <div className="grid grid-cols-4 gap-3">
-              {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
-                <button
-                  key={count}
-                  onClick={() => selectHeadsupPlayerCount(count)}
-                  className="bg-[#2d3441] hover:bg-[#3b82f6] text-white rounded-xl p-6 text-2xl font-bold transition-all"
-                >
-                  {count}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (headsupSetupStep === 'names') {
-      return (
-        <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
-            <button
-              onClick={() => setHeadsupSetupStep('players')}
-              className="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
-            >
-              ← Назад
-            </button>
-
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Внеси имиња</h2>
-            </div>
-
-            <div className="space-y-3 mb-8 max-h-96 overflow-y-auto">
-              {players.map((player, index) => (
-                <input
-                  key={index}
-                  type="text"
-                  placeholder={`Играч ${index + 1}`}
-                  value={player}
-                  onChange={(e) => handlePlayerChange(index, e.target.value)}
-                  className="w-full px-4 py-3 bg-[#0a0e1a] border border-[#2d3441] rounded-xl focus:outline-none focus:border-[#3b82f6] text-white placeholder:text-gray-500 transition-all"
-                />
-              ))}
+              <h2 className="text-3xl font-bold text-white mb-4">HeadsUp</h2>
+              <div className="space-y-4 text-left text-gray-300">
+                <div className="bg-[#2d3441] p-4 rounded-xl">
+                  <p className="font-semibold text-white mb-2">Како се игра:</p>
+                  <ol className="list-decimal list-inside space-y-2 text-sm">
+                    <li>Предај го телефонот на играчот</li>
+                    <li>Другите играчи даваат наводи за зборот</li>
+                    <li>Наведни телефон <span className="text-green-400">↑ нагоре</span> за точно</li>
+                    <li>Наведни телефон <span className="text-red-400">↓ надолу</span> за пропушти</li>
+                    <li>Или користи ги копчињата</li>
+                  </ol>
+                </div>
+                <div className="bg-[#2d3441] p-4 rounded-xl">
+                  <p className="font-semibold text-white mb-2">⚠️ Важно:</p>
+                  <p className="text-sm">Ротирај го телефонот хоризонтално за подобро искуство!</p>
+                </div>
+              </div>
             </div>
 
             <button
@@ -2117,79 +2077,107 @@ export default function Home() {
       );
     }
 
-    // Game screen
+    // Game screen - Horizontal only
     return (
-      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
-          <div className="text-center mb-6">
-            <p className="text-gray-400 text-sm mb-2">Играч: {players[headsupCurrentPlayer]}</p>
-            <p className="text-white text-2xl font-bold mb-4">Поени: {headsupScore}</p>
+      <div 
+        className={`min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4 transition-colors duration-300 ${
+          headsupFlashColor === 'green' ? 'bg-green-900/30' : 
+          headsupFlashColor === 'red' ? 'bg-red-900/30' : 
+          ''
+        }`}
+        style={{ 
+          minHeight: '100dvh' // Dynamic viewport height for mobile
+        }}
+      >
+        <div className="w-full max-w-4xl">
+          {/* Force landscape orientation message */}
+          <div className="md:hidden mb-4 text-center">
+            <p className="text-yellow-400 text-sm">🔄 Ротирај го телефонот хоризонтално</p>
           </div>
 
-          {!headsupShowWord ? (
-            <div className="flex flex-col items-center gap-8">
-              <div className="text-6xl">📱</div>
-              <div className="text-center">
-                <p className="text-white text-xl mb-4">
-                  Предај телефон на <span className="font-bold text-2xl">{players[headsupCurrentPlayer]}</span>
-                </p>
-                <p className="text-gray-400 text-sm">
-                  Останатите играчи ќе даваат наводи
-                </p>
-              </div>
-              <button
-                onClick={() => setHeadsupShowWord(true)}
-                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
-              >
-                Прикажи збор
-              </button>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            {/* Score display */}
+            <div className="text-center md:text-left">
+              <p className="text-gray-400 text-sm mb-1">Поени</p>
+              <p className="text-white text-4xl font-bold">{headsupScore}</p>
             </div>
-          ) : (
-            <div className="flex flex-col items-center gap-6">
-              <div className="w-full aspect-[3/4] bg-[#2d3441] border-2 border-[#3b82f6] rounded-2xl flex items-center justify-center p-8">
-                <div className="text-center text-white">
-                  <p className="text-5xl font-bold">{headsupCurrentWord.word}</p>
-                </div>
-              </div>
 
-              <div className="bg-[#1a1f2e] p-4 rounded-xl w-full">
-                <p className="text-gray-400 text-xs text-center mb-2">Или наведни телефон:</p>
-                <div className="flex items-center justify-center gap-4 text-sm">
-                  <div className="text-center">
-                    <p className="text-green-400 mb-1">↑ Нагоре</p>
-                    <p className="text-gray-500 text-xs">Точно</p>
-                  </div>
-                  <div className="w-px h-8 bg-[#2d3441]"></div>
-                  <div className="text-center">
-                    <p className="text-gray-400 mb-1">↓ Надолу</p>
-                    <p className="text-gray-500 text-xs">Пропушти</p>
-                  </div>
+            {/* Word card - Horizontal layout */}
+            {!headsupShowWord ? (
+              <div className="flex flex-col items-center gap-6 flex-1">
+                <div className="text-6xl">📱</div>
+                <div className="text-center">
+                  <p className="text-white text-xl mb-2">Предај телефон на играчот</p>
+                  <p className="text-gray-400 text-sm">Другите играчи ќе даваат наводи</p>
                 </div>
-              </div>
-
-              <div className="flex gap-3 w-full">
                 <button
-                  onClick={handleHeadsupCorrect}
-                  className="flex-1 bg-[#10b981] hover:bg-[#059669] text-white py-4 rounded-xl text-lg font-bold transition-all"
+                  onClick={() => setHeadsupShowWord(true)}
+                  className="bg-[#3b82f6] hover:bg-[#2563eb] text-white px-8 py-4 rounded-xl text-lg font-bold transition-all"
                 >
-                  Точно ✓
-                </button>
-                <button
-                  onClick={() => {
-                    const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
-                    setHeadsupCurrentWord(randomWord);
-                  }}
-                  className="flex-1 bg-[#2d3441] hover:bg-[#1a1f2e] text-gray-300 py-4 rounded-xl text-lg font-bold transition-all"
-                >
-                  Пропушти
+                  Прикажи збор
                 </button>
               </div>
+            ) : (
+              <div className="flex-1 w-full">
+                <div 
+                  className={`w-full aspect-[16/9] bg-[#2d3441] border-2 border-[#3b82f6] rounded-2xl flex items-center justify-center p-8 transition-colors duration-300 ${
+                    headsupFlashColor === 'green' ? 'bg-green-500/20 border-green-400' : 
+                    headsupFlashColor === 'red' ? 'bg-red-500/20 border-red-400' : 
+                    ''
+                  }`}
+                >
+                  <div className="text-center text-white">
+                    <p className="text-6xl md:text-7xl font-bold">{headsupCurrentWord.word}</p>
+                  </div>
+                </div>
 
+                {/* Tilt instructions */}
+                <div className="bg-[#1a1f2e] p-4 rounded-xl mt-4">
+                  <p className="text-gray-400 text-xs text-center mb-2">Наведни телефон:</p>
+                  <div className="flex items-center justify-center gap-6 text-sm">
+                    <div className="text-center">
+                      <p className="text-green-400 mb-1 text-lg">↑</p>
+                      <p className="text-gray-500 text-xs">Точно</p>
+                    </div>
+                    <div className="w-px h-8 bg-[#2d3441]"></div>
+                    <div className="text-center">
+                      <p className="text-red-400 mb-1 text-lg">↓</p>
+                      <p className="text-gray-500 text-xs">Пропушти</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={handleHeadsupCorrect}
+                    className="flex-1 bg-[#10b981] hover:bg-[#059669] text-white py-4 rounded-xl text-lg font-bold transition-all"
+                  >
+                    Точно ✓
+                  </button>
+                  <button
+                    onClick={handleHeadsupSkip}
+                    className="flex-1 bg-[#dc2626] hover:bg-[#b91c1c] text-white py-4 rounded-xl text-lg font-bold transition-all"
+                  >
+                    Пропушти
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* End game button */}
+          {headsupShowWord && (
+            <div className="mt-6 text-center">
               <button
-                onClick={handleHeadsupNext}
-                className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
+                onClick={() => {
+                  setHeadsupSetupStep('instructions');
+                  setHeadsupShowWord(false);
+                  setHeadsupScore(0);
+                }}
+                className="bg-[#2d3441] hover:bg-[#1a1f2e] text-gray-300 px-6 py-3 rounded-xl text-base font-medium transition-all"
               >
-                {headsupCurrentPlayer < playerCount - 1 ? 'Следен играч →' : 'Крај на игра'}
+                Крај на игра
               </button>
             </div>
           )}
