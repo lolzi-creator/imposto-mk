@@ -1,0 +1,17 @@
+{
+  "name": "impostor-backend",
+  "version": "1.0.0",
+  "description": "Socket.io server for Impostor game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

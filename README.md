@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Impostor Games - Macedonian Edition
 
-## Getting Started
+A collection of party games in Macedonian, including Impostor, Mafia, and HeadsUp with online multiplayer support.
 
-First, run the development server:
+## 🎮 Games
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Impostor** - Find the impostor among players
+- **Mafia** - Social deduction game with roles (Mafia, Police, Doctor, Citizens)
+- **HeadsUp** - Word guessing game
+
+## 🚀 Features
+
+- ✅ Offline mode - Play on a single device
+- ✅ Online multiplayer - Real-time games with friends
+- ✅ Beautiful dark theme UI
+- ✅ 300+ Macedonian words with clues
+- ✅ Professional design
+
+## 📁 Project Structure
+
+```
+/
+├── app/              # Next.js frontend
+│   ├── hooks/        # React hooks (useSocket)
+│   ├── page.tsx      # Main game component
+│   └── words.ts      # Word database
+├── backend/          # Socket.io server
+│   └── server.js     # Game server
+└── ...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠️ Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Node.js 18+
+- npm or yarn
 
-## Learn More
+### Installation
 
-To learn more about Next.js, take a look at the following resources:
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd imposto-mk
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Install frontend dependencies**
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Install backend dependencies**
+   ```bash
+   cd backend
+   npm install
+   cd ..
+   ```
 
-## Deploy on Vercel
+4. **Set up environment variables**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Create `.env.local` in root:
+   ```env
+   NEXT_PUBLIC_SOCKET_URL=http://localhost:3001
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   Create `backend/.env`:
+   ```env
+   PORT=3001
+   ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+   ```
+
+## 🎯 Development
+
+### Run Locally
+
+**Terminal 1 - Backend:**
+```bash
+cd backend
+npm run dev
+```
+
+**Terminal 2 - Frontend:**
+```bash
+npm run dev
+```
+
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
+
+## 📦 Build
+
+### Frontend
+```bash
+npm run build
+npm start
+```
+
+### Backend
+```bash
+cd backend
+npm start
+```
+
+## 🚀 Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+
+**Quick Summary:**
+- **Frontend**: Deploy to Netlify/Vercel
+- **Backend**: Deploy to Railway/Render (needs WebSocket support)
+
+## 🎨 Tech Stack
+
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Socket.io
+- **Styling**: Tailwind CSS with custom dark theme
+
+## 📝 License
+
+MIT
+
+## 🤝 Contributing
+
+Contributions welcome! Feel free to submit issues or pull requests.
