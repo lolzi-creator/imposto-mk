@@ -23,23 +23,27 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // Create room
-  socket.on('create-room', ({ roomCode, playerName, mafiaCount = 1 }) => {
+  socket.on('create-room', ({ roomCode, playerName, gameType, mafiaCount = 1, impostorCount = 1 }) => {
     const room = {
       code: roomCode,
       admin: socket.id,
       players: [{ id: socket.id, name: playerName, isAdmin: true }],
+      gameType: gameType || 'mafia',
       mafiaCount: mafiaCount || 1,
+      impostorCount: impostorCount || 1,
       gameState: 'lobby',
       phase: null,
       roles: [],
+      playerCards: [], // For Impostor game
       votes: {},
       nightActions: {
         mafiaKill: null,
-        mafiaVotes: {}, // Store votes from each mafia player
+        mafiaVotes: {},
         policeInvestigate: null,
         doctorSave: null
       },
-      day: 1
+      day: 1,
+      firstPlayer: null // For Impostor game
     };
     rooms.set(roomCode, room);
     socket.join(roomCode);
@@ -48,7 +52,7 @@ io.on('connection', (socket) => {
   });
 
   // Join room
-  socket.on('join-room', ({ roomCode, playerName }) => {
+  socket.on('join-room', ({ roomCode, playerName, gameType }) => {
     const room = rooms.get(roomCode);
     if (!room) {
       socket.emit('room-error', { message: 'Собата не постои!' });
@@ -60,6 +64,11 @@ io.on('connection', (socket) => {
     }
     if (room.players.some(p => p.name === playerName)) {
       socket.emit('room-error', { message: 'Името е веќе заземено!' });
+      return;
+    }
+    // Check if game type matches
+    if (gameType && room.gameType !== gameType) {
+      socket.emit('room-error', { message: 'Типот на игра не се совпаѓа!' });
       return;
     }
 
@@ -77,41 +86,116 @@ io.on('connection', (socket) => {
     io.to(roomCode).emit('room-updated', room);
   });
 
+  // Update impostor count
+  socket.on('update-impostor-count', ({ roomCode, impostorCount }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.admin !== socket.id) return;
+    room.impostorCount = impostorCount;
+    io.to(roomCode).emit('room-updated', room);
+  });
+
   // Start game
   socket.on('start-game', ({ roomCode }) => {
     const room = rooms.get(roomCode);
     if (!room || room.admin !== socket.id) return;
-    if (room.players.length < 5) {
-      socket.emit('game-error', { message: 'Минимум 5 играчи!' });
-      return;
-    }
-
-    // Assign roles
-    const roles = ['mafia', 'police', 'doctor'];
-    while (roles.length < room.players.length) roles.push('citizen');
     
-    // Add second mafia if needed
-    if (room.mafiaCount === 2 && roles.length > 3) {
-      roles[3] = 'mafia';
-    }
+    if (room.gameType === 'mafia') {
+      if (room.players.length < 5) {
+        socket.emit('game-error', { message: 'Минимум 5 играчи!' });
+        return;
+      }
 
-    // Shuffle
-    for (let i = roles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [roles[i], roles[j]] = [roles[j], roles[i]];
-    }
+      // Assign roles
+      const roles = ['mafia', 'police', 'doctor'];
+      while (roles.length < room.players.length) roles.push('citizen');
+      
+      // Add second mafia if needed
+      if (room.mafiaCount === 2 && roles.length > 3) {
+        roles[3] = 'mafia';
+      }
 
-    room.roles = room.players.map((player, index) => ({
-      playerId: player.id,
-      playerName: player.name,
-      role: roles[index],
-      alive: true
-    }));
+      // Shuffle
+      for (let i = roles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [roles[i], roles[j]] = [roles[j], roles[i]];
+      }
+
+      room.roles = room.players.map((player, index) => ({
+        playerId: player.id,
+        playerName: player.name,
+        role: roles[index],
+        alive: true
+      }));
 
       room.gameState = 'roles';
       room.phase = 'roles';
       room.nightActions = { mafiaKill: null, mafiaVotes: {}, policeInvestigate: null, doctorSave: null };
       io.to(roomCode).emit('game-started', room);
+    } else if (room.gameType === 'impostor') {
+      if (room.players.length < 3) {
+        socket.emit('game-error', { message: 'Минимум 3 играчи!' });
+        return;
+      }
+
+      // Import words (we'll need to send them from frontend or have them in backend)
+      // For now, we'll assign cards and let frontend handle word selection
+      const playerCount = room.players.length;
+      const impostorCount = Math.min(room.impostorCount, playerCount - 1);
+      
+      // Select random impostor indices
+      const impostorIndices = [];
+      while (impostorIndices.length < impostorCount) {
+        const idx = Math.floor(Math.random() * playerCount);
+        if (!impostorIndices.includes(idx)) {
+          impostorIndices.push(idx);
+        }
+      }
+
+      // Select random word (we'll use a simple word list - frontend will handle the full list)
+      // For now, we'll just store that a word was selected and let frontend handle display
+      // The word will be the same for all non-impostors
+      const wordIndex = Math.floor(Math.random() * 300); // Assuming 300 words
+
+      // Assign cards to players
+      room.playerCards = room.players.map((player, index) => ({
+        playerId: player.id,
+        playerName: player.name,
+        isImpostor: impostorIndices.includes(index),
+        cardSeen: false
+      }));
+
+      // Store word info for the game
+      room.wordIndex = wordIndex; // Frontend will use this to get the word from ALL_WORDS
+
+      // Select random first player
+      room.firstPlayer = room.players[Math.floor(Math.random() * playerCount)].name;
+
+      room.gameState = 'cards';
+      room.phase = 'cards';
+      room.cardsSeen = {}; // Track who has seen their card
+      io.to(roomCode).emit('game-started', room);
+    }
+  });
+
+  // Card seen (for Impostor game)
+  socket.on('card-seen', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.gameType !== 'impostor') return;
+    
+    if (!room.cardsSeen) {
+      room.cardsSeen = {};
+    }
+    room.cardsSeen[socket.id] = true;
+    
+    // Check if all players have seen their cards
+    const allSeen = room.players.every(p => room.cardsSeen[p.id]);
+    
+    if (allSeen) {
+      room.phase = 'started';
+      io.to(roomCode).emit('game-updated', room);
+    } else {
+      io.to(roomCode).emit('game-updated', room);
+    }
   });
 
   // Mafia actions - voting system

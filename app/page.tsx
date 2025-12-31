@@ -5,7 +5,7 @@ import { ALL_WORDS } from './words';
 import { useSocket } from './hooks/useSocket';
 import { Socket } from 'socket.io-client';
 
-type GameType = 'home' | 'impostor' | 'mafia' | 'headsup' | 'online-mafia';
+type GameType = 'home' | 'impostor' | 'mafia' | 'headsup' | 'online-mafia' | 'online-impostor';
 type GameMode = 'offline' | 'online';
 type MafiaRole = 'mafia' | 'police' | 'doctor' | 'citizen';
 type MafiaPhase = 'roles' | 'night-mafia' | 'night-police' | 'night-doctor' | 'day' | 'finished';
@@ -25,6 +25,8 @@ export default function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string; isAdmin: boolean }[]>([]);
   const [onlineMafiaCount, setOnlineMafiaCount] = useState(1);
+  const [onlineImpostorCount, setOnlineImpostorCount] = useState(1);
+  const [onlineGameType, setOnlineGameType] = useState<'mafia' | 'impostor' | null>(null);
   const [onlineGameState, setOnlineGameState] = useState<any>(null);
   const [myRole, setMyRole] = useState<MafiaRole | null>(null);
   const [policeResult, setPoliceResult] = useState<{ isMafia: boolean; targetName: string } | null>(null);
@@ -364,7 +366,11 @@ export default function Home() {
 
     socket.on('room-updated', (room) => {
       setRoomPlayers(room.players);
-      setOnlineMafiaCount(room.mafiaCount);
+      setOnlineMafiaCount(room.mafiaCount || 1);
+      setOnlineImpostorCount(room.impostorCount || 1);
+      if (room.gameType) {
+        setOnlineGameType(room.gameType);
+      }
       setOnlineGameState(room); // Set game state so lobby can render
     });
 
@@ -374,11 +380,18 @@ export default function Home() {
 
     socket.on('game-started', (room) => {
       setOnlineGameState(room);
-      const myRoleData = room.roles.find((r: any) => r.playerId === socket.id);
-      if (myRoleData) {
-        setMyRole(myRoleData.role);
+      if (room.gameType === 'mafia') {
+        const myRoleData = room.roles.find((r: any) => r.playerId === socket.id);
+        if (myRoleData) {
+          setMyRole(myRoleData.role);
+        }
+        setGameType('online-mafia');
+      } else if (room.gameType === 'impostor') {
+        setGameType('online-impostor');
+        // Use the word index from server to ensure all players have the same word
+        const wordIndex = room.wordIndex !== undefined ? room.wordIndex : Math.floor(Math.random() * ALL_WORDS.length);
+        setCurrentWord(ALL_WORDS[wordIndex % ALL_WORDS.length]);
       }
-      setGameType('online-mafia');
     });
 
     socket.on('game-updated', (room) => {
@@ -414,6 +427,61 @@ export default function Home() {
       socket.off('game-finished');
     };
   }, [socket]);
+
+  // HeadsUp gyroscope/accelerometer tilt detection
+  useEffect(() => {
+    // Only activate when HeadsUp game is active and word is shown
+    if (gameType !== 'headsup' || headsupSetupStep !== 'game' || !headsupShowWord) {
+      return;
+    }
+
+    let lastTiltTime = 0;
+    const TILT_THRESHOLD = 30; // degrees
+    const DEBOUNCE_TIME = 500; // milliseconds
+
+    const handleOrientation = (event: DeviceOrientationEvent) => {
+      const now = Date.now();
+      if (now - lastTiltTime < DEBOUNCE_TIME) return;
+
+      // beta is the front-to-back tilt in degrees (-180 to 180)
+      // Positive beta = tilted back (up) = correct
+      // Negative beta = tilted forward (down) = skip
+      const beta = event.beta || 0;
+
+      if (beta > TILT_THRESHOLD) {
+        // Tilted up - mark as correct
+        lastTiltTime = now;
+        setHeadsupScore((prev) => prev + 1);
+        const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
+        setHeadsupCurrentWord(randomWord);
+      } else if (beta < -TILT_THRESHOLD) {
+        // Tilted down - skip
+        lastTiltTime = now;
+        const randomWord = ALL_WORDS[Math.floor(Math.random() * ALL_WORDS.length)];
+        setHeadsupCurrentWord(randomWord);
+      }
+    };
+
+    // Request permission for iOS 13+
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      (DeviceOrientationEvent as any).requestPermission()
+        .then((response: string) => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation as EventListener);
+          }
+        })
+        .catch(() => {
+          // Permission denied or not supported
+        });
+    } else if (typeof DeviceOrientationEvent !== 'undefined') {
+      // For Android and older iOS
+      window.addEventListener('deviceorientation', handleOrientation as EventListener);
+    }
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation as EventListener);
+    };
+  }, [gameType, headsupSetupStep, headsupShowWord]);
 
   // Homepage - Mode Selection
   if (gameType === 'home' && gameMode === null) {
@@ -507,11 +575,11 @@ export default function Home() {
     );
   }
 
-  // Online Mode - Room Selection
-  if (gameMode === 'online' && !roomCode) {
+  // Online Mode - Game Selection
+  if (gameMode === 'online' && !onlineGameType) {
     return (
       <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
-        <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+        <div className="w-full max-w-2xl bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
           <button
             onClick={() => setGameMode(null)}
             className="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
@@ -520,7 +588,48 @@ export default function Home() {
           </button>
 
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-white mb-2">Online Mafia</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">Online Игри</h2>
+            <p className="text-gray-400">Избери игра</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <button
+              onClick={() => setOnlineGameType('impostor')}
+              className="bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8 hover:border-[#3b82f6] hover:bg-[#1e2433] transition-all"
+            >
+              <div className="text-4xl mb-4">🕵️</div>
+              <h2 className="text-2xl font-bold text-white mb-2">Impostor</h2>
+              <p className="text-gray-400 text-sm">Најдете го impostor-от</p>
+            </button>
+
+            <button
+              onClick={() => setOnlineGameType('mafia')}
+              className="bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8 hover:border-[#3b82f6] hover:bg-[#1e2433] transition-all"
+            >
+              <div className="text-4xl mb-4">🎭</div>
+              <h2 className="text-2xl font-bold text-white mb-2">Mafia</h2>
+              <p className="text-gray-400 text-sm">Социјална дедукција</p>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Online Mode - Room Selection
+  if (gameMode === 'online' && onlineGameType && !roomCode) {
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+          <button
+            onClick={() => setOnlineGameType(null)}
+            className="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
+          >
+            ← Назад
+          </button>
+
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">Online {onlineGameType === 'impostor' ? 'Impostor' : 'Mafia'}</h2>
             <p className="text-gray-400">Создај или приклучи се на соба</p>
           </div>
 
@@ -548,7 +657,7 @@ export default function Home() {
                     return;
                   }
                   const code = generateRoomCode();
-                  socket.emit('create-room', { roomCode: code, playerName, mafiaCount: 1 });
+                  socket.emit('create-room', { roomCode: code, playerName, gameType: onlineGameType, mafiaCount: onlineGameType === 'mafia' ? 1 : undefined, impostorCount: onlineGameType === 'impostor' ? 1 : undefined });
                 }}
                 className="bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
               >
@@ -563,7 +672,7 @@ export default function Home() {
                   }
                   const code = prompt('Внеси код на собата:');
                   if (code && socket && connected) {
-                    socket.emit('join-room', { roomCode: code.toUpperCase(), playerName });
+                    socket.emit('join-room', { roomCode: code.toUpperCase(), playerName, gameType: onlineGameType });
                   }
                 }}
                 className="bg-[#2d3441] hover:bg-[#1a1f2e] text-white py-4 rounded-xl text-lg font-bold transition-all"
@@ -583,6 +692,8 @@ export default function Home() {
 
   // Online Mode - Lobby
   if (gameMode === 'online' && roomCode && (!onlineGameState || onlineGameState?.gameState === 'lobby')) {
+    const gameType = onlineGameState?.gameType || onlineGameType;
+    
     return (
       <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
         <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
@@ -591,7 +702,7 @@ export default function Home() {
             <p className="text-gray-400 text-sm">Играчи: {roomPlayers.length}</p>
           </div>
 
-          {isAdmin && (
+          {isAdmin && gameType === 'mafia' && (
             <div className="mb-6">
               <label className="block text-gray-400 text-sm mb-2">Број на мафија</label>
               <div className="grid grid-cols-2 gap-3">
@@ -617,6 +728,40 @@ export default function Home() {
             </div>
           )}
 
+          {isAdmin && gameType === 'impostor' && (
+            <div className="mb-6">
+              <label className="block text-gray-400 text-sm mb-2">Број на impostors</label>
+              <div className="grid grid-cols-3 gap-3">
+                {[1, 2, 3].map((count) => {
+                  const isDisabled = count >= roomPlayers.length;
+                  return (
+                    <button
+                      key={count}
+                      onClick={() => {
+                        if (!isDisabled) {
+                          setOnlineImpostorCount(count);
+                          if (socket) {
+                            socket.emit('update-impostor-count', { roomCode, impostorCount: count });
+                          }
+                        }
+                      }}
+                      disabled={isDisabled}
+                      className={`py-3 rounded-xl font-bold transition-all ${
+                        isDisabled
+                          ? 'bg-[#1a1f2e] border border-[#2d3441] text-gray-600 cursor-not-allowed'
+                          : onlineImpostorCount === count
+                          ? 'bg-[#3b82f6] text-white'
+                          : 'bg-[#2d3441] text-gray-300'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="bg-[#2d3441] p-6 rounded-xl mb-6">
             <p className="text-gray-300 text-sm mb-3 font-semibold">Играчи:</p>
             <div className="space-y-2">
@@ -632,15 +777,19 @@ export default function Home() {
           {isAdmin && (
             <button
               onClick={() => {
-                if (roomPlayers.length < 5) {
+                if (gameType === 'mafia' && roomPlayers.length < 5) {
                   alert('Минимум 5 играчи!');
+                  return;
+                }
+                if (gameType === 'impostor' && roomPlayers.length < 3) {
+                  alert('Минимум 3 играчи!');
                   return;
                 }
                 if (socket) {
                   socket.emit('start-game', { roomCode });
                 }
               }}
-              disabled={roomPlayers.length < 5}
+              disabled={(gameType === 'mafia' && roomPlayers.length < 5) || (gameType === 'impostor' && roomPlayers.length < 3)}
               className="w-full bg-[#10b981] hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-xl text-lg font-bold transition-all"
             >
               Почни Игра
@@ -1094,11 +1243,13 @@ export default function Home() {
               onClick={() => {
                 setGameType('home');
                 setGameMode(null);
+                setOnlineGameType(null);
                 setRoomCode('');
                 setOnlineGameState(null);
                 setMyRole(null);
                 setMyVote(null);
                 setPoliceResult(null);
+                setCardRevealed(false);
               }}
               className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
             >
@@ -1116,6 +1267,151 @@ export default function Home() {
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">Ноќ {day}</h2>
             <p className="text-gray-400">Чекајте другите играчи...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Online Impostor Game
+  if (gameType === 'online-impostor' && onlineGameState) {
+    const { playerCards, firstPlayer: onlineFirstPlayer, phase, cardsSeen } = onlineGameState;
+    const myCard = playerCards?.find((c: any) => c.playerId === socket?.id);
+    const isImpostor = myCard?.isImpostor || false;
+    const totalPlayers = playerCards?.length || 0;
+    const playersSeenCount = cardsSeen ? Object.keys(cardsSeen).length : 0;
+    const iHaveSeen = cardsSeen?.[socket?.id || ''] || false;
+
+    // Card reveal phase
+    if (phase === 'cards') {
+      return (
+        <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">Твојата карта</h2>
+              <p className="text-gray-400 text-sm">Провери ја твојата карта</p>
+            </div>
+
+            <div className="bg-[#2d3441] p-6 rounded-xl mb-6">
+              <div className="flex flex-col items-center">
+                <div
+                  onClick={() => setCardRevealed(!cardRevealed)}
+                  className="w-full aspect-[3/4] bg-[#1a1f2e] border-2 border-[#3b82f6] rounded-2xl cursor-pointer flex items-center justify-center p-8 transition-all hover:bg-[#0a0e1a] mb-6"
+                >
+                  {!cardRevealed ? (
+                    <div className="text-center text-white">
+                      <div className="text-6xl mb-4">🎴</div>
+                      <p className="text-xl font-bold">Притисни за откривање</p>
+                    </div>
+                  ) : (
+                    <div className="text-center text-white px-4">
+                      {isImpostor ? (
+                        <div className="space-y-4">
+                          <p className="text-4xl font-bold mb-2">IMPOSTOR</p>
+                          <div className="w-12 h-0.5 bg-white/50 mx-auto my-4"></div>
+                          <p className="text-sm opacity-75 mb-2">Навод:</p>
+                          <p className="text-2xl font-bold">{currentWord.clue}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <p className="text-sm opacity-75 mb-2">Твојот збор:</p>
+                          <p className="text-3xl font-bold">{currentWord.word}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <p className="text-white text-xl font-bold text-center mb-4">{playerName}</p>
+              </div>
+            </div>
+
+            {/* Progress indicator */}
+            <div className="bg-[#1a1f2e] p-4 rounded-xl mb-6">
+              <p className="text-gray-300 text-sm mb-3 font-semibold text-center">
+                Готови: {playersSeenCount}/{totalPlayers}
+              </p>
+              <div className="space-y-1">
+                {playerCards?.map((card: any) => {
+                  const hasSeen = cardsSeen?.[card.playerId] || false;
+                  return (
+                    <div key={card.playerId} className="flex items-center justify-between text-sm">
+                      <span className={card.playerId === socket?.id ? 'text-[#3b82f6] font-bold' : hasSeen ? 'text-green-400' : 'text-gray-400'}>
+                        {card.playerName}
+                      </span>
+                      {hasSeen && <span className="text-green-400">✓</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {cardRevealed && (
+              <button
+                onClick={() => {
+                  if (socket && !iHaveSeen) {
+                    socket.emit('card-seen', { roomCode });
+                  }
+                }}
+                disabled={iHaveSeen}
+                className={`w-full py-4 rounded-xl text-lg font-bold transition-all ${
+                  iHaveSeen
+                    ? 'bg-[#10b981] text-white cursor-not-allowed opacity-75'
+                    : 'bg-[#10b981] hover:bg-[#059669] text-white'
+                }`}
+              >
+                {iHaveSeen ? 'Готово ✓' : 'Готово ✓'}
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Game start screen
+    if (phase === 'started') {
+      return (
+        <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+            <div className="text-center mb-10">
+              <h1 className="text-4xl font-bold text-white mb-3">Играта започна!</h1>
+            </div>
+
+            <div className="bg-[#2d3441] p-8 rounded-xl mb-6 border border-[#3b82f6]">
+              <p className="text-center text-gray-400 text-sm mb-2">Прв започнува</p>
+              <p className="text-center text-white text-3xl font-bold">{onlineFirstPlayer}</p>
+            </div>
+
+            <div className="bg-[#2d3441] p-6 rounded-xl mb-8">
+              <p className="text-center text-gray-300 text-sm">
+                Најдете го impostor-от пред тој да ве најде вас!
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setGameType('home');
+                setGameMode(null);
+                setOnlineGameType(null);
+                setRoomCode('');
+                setOnlineGameState(null);
+                setCardRevealed(false);
+              }}
+              className="w-full bg-[#3b82f6] hover:bg-[#2563eb] text-white py-4 rounded-xl text-lg font-bold transition-all"
+            >
+              Назад на почеток
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Waiting for all players to see their cards
+    return (
+      <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-white mb-2">Чекајте...</h2>
+            <p className="text-gray-400">Сите играчи мора да видат нивни карти</p>
           </div>
         </div>
       </div>
@@ -1853,6 +2149,21 @@ export default function Home() {
               <div className="w-full aspect-[3/4] bg-[#2d3441] border-2 border-[#3b82f6] rounded-2xl flex items-center justify-center p-8">
                 <div className="text-center text-white">
                   <p className="text-5xl font-bold">{headsupCurrentWord.word}</p>
+                </div>
+              </div>
+
+              <div className="bg-[#1a1f2e] p-4 rounded-xl w-full">
+                <p className="text-gray-400 text-xs text-center mb-2">Или наведни телефон:</p>
+                <div className="flex items-center justify-center gap-4 text-sm">
+                  <div className="text-center">
+                    <p className="text-green-400 mb-1">↑ Нагоре</p>
+                    <p className="text-gray-500 text-xs">Точно</p>
+                  </div>
+                  <div className="w-px h-8 bg-[#2d3441]"></div>
+                  <div className="text-center">
+                    <p className="text-gray-400 mb-1">↓ Надолу</p>
+                    <p className="text-gray-500 text-xs">Пропушти</p>
+                  </div>
                 </div>
               </div>
 
