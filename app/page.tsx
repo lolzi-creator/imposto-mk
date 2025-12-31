@@ -352,6 +352,7 @@ export default function Home() {
     socket.on('room-created', ({ roomCode: code, playerId }) => {
       setRoomCode(code);
       setIsAdmin(true);
+      // onlineGameState will be set by room-updated event
     });
 
     socket.on('room-joined', ({ roomCode: code, playerId }) => {
@@ -362,6 +363,7 @@ export default function Home() {
     socket.on('room-updated', (room) => {
       setRoomPlayers(room.players);
       setOnlineMafiaCount(room.mafiaCount);
+      setOnlineGameState(room); // Set game state so lobby can render
     });
 
     socket.on('room-error', ({ message }) => {
@@ -575,7 +577,7 @@ export default function Home() {
   }
 
   // Online Mode - Lobby
-  if (gameMode === 'online' && roomCode && onlineGameState?.gameState === 'lobby') {
+  if (gameMode === 'online' && roomCode && (!onlineGameState || onlineGameState?.gameState === 'lobby')) {
     return (
       <div className="min-h-screen bg-[#0a0e1a] flex items-center justify-center p-4">
         <div className="w-full max-w-lg bg-[#1a1f2e] border border-[#2d3441] rounded-2xl p-8">
